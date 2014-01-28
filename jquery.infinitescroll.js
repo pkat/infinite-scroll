@@ -295,7 +295,7 @@
         },
 
         // Custom error
-        _error: function infscr_error(xhr) {
+        _error: function infscr_error(xhr, jqXHR) {
 
             var opts = this.options;
 
@@ -312,7 +312,7 @@
             this._debug('Error', xhr);
 
             if (xhr === 'end' || opts.state.isBeyondMaxPage) {
-                this._showdonemsg();
+                this._showdonemsg(jqXHR);
             }
 
             opts.state.isDone = true;
@@ -324,7 +324,7 @@
         },
 
         // Load Callback
-        _loadcallback: function infscr_loadcallback(box, data, url) {
+        _loadcallback: function infscr_loadcallback(box, data, url, jqXHR) {
             var opts = this.options,
             callback = this.options.callback, // GLOBAL OBJECT FOR CALLBACK
             result = (opts.state.isDone) ? 'done' : (!opts.appendCallback) ? 'no-append' : 'append',
@@ -338,7 +338,7 @@
 
 			switch (result) {
 				case 'done':
-					this._showdonemsg();
+					this._showdonemsg(jqXHR);
 					return false;
 
 				case 'no-append':
@@ -352,7 +352,7 @@
 					var children = box.children();
 					// if it didn't return anything
 					if (children.length === 0) {
-						return this._error('end');
+						return this._error('end', jqXHR);
 					}
 
 					// use a documentFragment because it works when content is going into a table or UL
@@ -466,13 +466,13 @@
         },
 
         // Show done message
-        _showdonemsg: function infscr_showdonemsg() {
+        _showdonemsg: function infscr_showdonemsg(jqXHR) {
 
             var opts = this.options;
 
             // if behavior is defined and this function is extended, call that instead of default
             if (!!opts.behavior && this['_showdonemsg_'+opts.behavior] !== undefined) {
-                this['_showdonemsg_'+opts.behavior].call(this);
+                this['_showdonemsg_'+opts.behavior].call(this, jqXHR);
                 return;
             }
 
@@ -485,7 +485,7 @@
             });
 
             // user provided callback when done    
-            opts.errorCallback.call($(opts.contentSelector)[0],'done');
+            opts.errorCallback.call($(opts.contentSelector)[0],'done', jqXHR);
         },
 
         // grab each selector option and see if any fail
@@ -557,8 +557,8 @@
 			switch (method) {
 				case 'html+callback':
 					instance._debug('Using HTML via .load() method');
-					box.load(desturl + ' ' + opts.itemSelector, undefined, function infscr_ajax_callback(responseText) {
-						instance._loadcallback(box, responseText, desturl);
+					box.load(desturl + ' ' + opts.itemSelector, undefined, function infscr_ajax_callback(responseText, textStatus, XMLHttpRequest) {
+						instance._loadcallback(box, responseText, desturl, XMLHttpRequest);
 					});
 
 					break;
@@ -572,9 +572,9 @@
 						complete: function infscr_ajax_callback(jqXHR, textStatus) {
 							condition = (typeof (jqXHR.isResolved) !== 'undefined') ? (jqXHR.isResolved()) : (textStatus === "success" || textStatus === "notmodified");
 							if (condition) {
-								instance._loadcallback(box, jqXHR.responseText, desturl);
+								instance._loadcallback(box, jqXHR.responseText, desturl, jqXHR);
 							} else {
-								instance._error('end');
+								instance._error('end', jqXHR);
 							}
 						}
 					});
@@ -597,24 +597,24 @@
 									if (condition) {
 										instance._loadcallback(box, theData);
 									} else {
-										instance._error('end');
+										instance._error('end', jqXHR);
 									}
 								} else {
 									instance._debug("template must be defined.");
-									instance._error('end');
+									instance._error('end', jqXHR);
 								}
 							} else {
 								// if appendCallback is false, we will pass in the JSON object. you should handle it yourself in your callback.
 								if (condition) {
 									instance._loadcallback(box, data, desturl);
 								} else {
-									instance._error('end');
+									instance._error('end', jqXHR);
 								}
 							}
 						},
-						error: function() {
+						error: function(jqXHR, textStatus, errorThrown) {
 							instance._debug("JSON ajax request failed.");
-							instance._error('end');
+							instance._error('end', jqXHR);
 						}
 					});
 
